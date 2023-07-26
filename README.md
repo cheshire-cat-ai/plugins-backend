@@ -14,3 +14,26 @@ Start uvicorn server:
 ```bash
 $ uvicorn main:app --reload
 ```
+
+
+## Endpoint list
+
+```
+/plugins
+```
+
+List all the plugins (paginated)
+
+**Pagination Parameters**
+
+`page` query the page number
+`page_size` query the number of elements per page
+
+Eg. return the second page, 3 plugins per page 
+```
+/plugins?page=1&page_size=2
+```
+
+## Caching system
+
+Actually the cache is memory based (reset on shutdown) and it's invalidated once per day (after 1440 minutes)
