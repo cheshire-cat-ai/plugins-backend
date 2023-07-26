@@ -76,6 +76,44 @@ async def read_remote_json(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE):
     }
 
 
+@app.get("/tags")
+async def get_all_tags():
+    global cache
+
+    # Check if cache is still valid, otherwise update the cache
+    if not is_cache_valid():
+        await read_remote_json()
+
+    # Get all tags from plugin data
+    all_tags = set()
+    for plugin_data in cache["plugins"]:
+        if "tags" in plugin_data:
+            tags = plugin_data["tags"]
+            if isinstance(tags, str):
+                all_tags.add(tags)
+            elif isinstance(tags, list):
+                all_tags.update(tags)
+
+    return list(all_tags)
+
+
+@app.get("/tag/{tag_name}")
+async def get_plugins_by_tag(tag_name: str):
+    global cache
+
+    # Check if cache is still valid, otherwise update the cache
+    if not is_cache_valid():
+        await read_remote_json()
+
+    # Find plugins containing the given tag
+    matching_plugins = []
+    for plugin_data in cache["plugins"]:
+        if "tags" in plugin_data and tag_name in plugin_data["tags"]:
+            matching_plugins.append(plugin_data)
+
+    return matching_plugins
+
+
 if __name__ == "__main__":
     import uvicorn
 

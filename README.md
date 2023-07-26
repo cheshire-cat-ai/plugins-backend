@@ -32,7 +32,28 @@ List all the plugins (paginated)
 Eg. return the second page, 3 plugins per page 
 ```
 /plugins?page=1&page_size=2
+```   
+
+---   
+
+
 ```
+/tags
+```
+
+Returns the list of all available plugins' tags   
+
+---   
+
+
+```
+/tag/{tag}
+```
+
+Returns all the plugin that has a specific tag   
+
+---   
+
 
 ## Caching system
 
