@@ -26,8 +26,9 @@ List all the plugins (paginated)
 
 **Pagination Parameters**
 
-`page` query the page number
-`page_size` query the number of elements per page
+`page`: query the page number   
+
+`page_size`: query the number of elements per page
 
 Eg. return the second page, 3 plugins per page 
 ```
@@ -51,6 +52,18 @@ Returns the list of all available plugins' tags
 ```
 
 Returns all the plugin that has a specific tag   
+
+**Pagination Parameters**
+
+`page`: query the page number   
+
+`page_size`: query the number of elements per page
+
+Eg. return the second page, 3 plugins per page 
+```
+/tag/{tag}?page=1&page_size=2
+```   
+
 
 ---   
 

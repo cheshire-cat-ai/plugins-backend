@@ -98,7 +98,7 @@ async def get_all_tags():
 
 
 @app.get("/tag/{tag_name}")
-async def get_plugins_by_tag(tag_name: str):
+async def get_plugins_by_tag(tag_name: str, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE):
     global cache
 
     # Check if cache is still valid, otherwise update the cache
@@ -106,12 +106,21 @@ async def get_plugins_by_tag(tag_name: str):
         await read_remote_json()
 
     # Find plugins containing the given tag
-    matching_plugins = []
-    for plugin_data in cache["plugins"]:
-        if "tags" in plugin_data and tag_name in plugin_data["tags"]:
-            matching_plugins.append(plugin_data)
+    matching_plugins = [plugin_data for plugin_data in cache["plugins"] if "tags" in plugin_data and tag_name in plugin_data["tags"]]
 
-    return matching_plugins
+    total_plugins = len(matching_plugins)
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+
+    if start_index >= total_plugins:
+        return []
+
+    return {
+        "total_plugins": total_plugins,
+        "page": page,
+        "page_size": page_size,
+        "plugins": matching_plugins[start_index:end_index],
+    }
 
 
 if __name__ == "__main__":
