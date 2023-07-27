@@ -12,7 +12,7 @@ $ pip install -r requirements.txt
 Start uvicorn server:   
 
 ```bash
-$ uvicorn main:app --reload
+$ python ./main.py
 ```
 
 
