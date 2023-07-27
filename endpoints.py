@@ -1,5 +1,5 @@
 from fastapi import HTTPException, APIRouter
-import httpx
+from httpx import AsyncClient, RequestError
 from datetime import datetime
 from utils import is_cache_valid, fetch_plugin_json
 
@@ -18,6 +18,7 @@ class Endpoints:
         self.router.add_api_route("/plugins", self.read_remote_json, methods=["GET"])
         self.router.add_api_route("/tags", self.get_all_tags, methods=["GET"])
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
+        self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
     async def read_remote_json(self, page: int = 1, page_size: int = 0):
@@ -29,7 +30,7 @@ class Endpoints:
             cached_plugins = self.cache["plugins"]
         else:
             try:
-                async with httpx.AsyncClient() as client:
+                async with AsyncClient() as client:
                     response = await client.get(self.json)
                     data = response.json()
 
@@ -46,8 +47,9 @@ class Endpoints:
                         plugin_json_url = url.replace("github.com", "raw.githubusercontent.com") + "/main/plugin.json"
                         try:
                             plugin_data = await fetch_plugin_json(plugin_json_url)
+                            plugin_data['url'] = url
                             cached_plugins.append(plugin_data)
-                        except httpx.RequestError as e:
+                        except RequestError as e:
                             error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
                             cached_plugins.append({"error": error_msg})
 
@@ -55,7 +57,7 @@ class Endpoints:
                     self.cache["plugins"] = cached_plugins
                     self.cache_timestamp["plugins"] = datetime.utcnow()
 
-            except httpx.RequestError as e:
+            except RequestError as e:
                 raise HTTPException(status_code=500, detail=f"Error fetching GitHub data: {str(e)}")
 
         return {
@@ -106,3 +108,6 @@ class Endpoints:
             "page_size": page_size,
             "plugins": matching_plugins[start_index:end_index],
         }
+
+    async def error(self):
+        return {'error': 'This aren\'t the plugins you are looking for!'}
