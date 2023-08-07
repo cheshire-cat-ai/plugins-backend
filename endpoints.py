@@ -141,7 +141,7 @@ class Endpoints:
             "plugins": filtered_plugins[start_index:end_index],
         }
 
-    async def get_plugins_by_author(self, author: str = Body(..., embed=True), page: int = 1, page_size: int = 0):
+    async def get_plugins_by_author(self, author_name: str = Body(..., embed=True), page: int = 1, page_size: int = 0):
         if page_size == 0:
             page_size = self.page_size
 
@@ -150,7 +150,7 @@ class Endpoints:
             await self.read_remote_json()
 
         # Find plugins by the specified author name
-        matching_plugins = [plugin_data for plugin_data in self.cache["plugins"] if plugin_data.get("author_name") == author]
+        matching_plugins = [plugin_data for plugin_data in self.cache["plugins"] if plugin_data.get("author_name") == author_name]
 
         total_plugins = len(matching_plugins)
         start_index = (page - 1) * page_size
