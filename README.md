@@ -18,6 +18,8 @@ $ python ./main.py
 
 ## Endpoint list
 
+**GET**   
+
 ```
 /plugins
 ```
@@ -32,11 +34,40 @@ List all the plugins (paginated)
 
 Eg. return the second page, 3 plugins per page 
 ```
-/plugins?page=1&page_size=2
+/plugins?page=1&page_size=3
 ```   
 
 ---   
 
+**POST**   
+
+```
+/excluded
+```
+
+List the plugins excluding the ones you pass in the body (paginated)
+
+**Request Body:**   
+
+```json
+{
+  "excluded": ["plugin to exclude", "other plugin I don't want"]
+}
+```
+**Pagination Parameters**
+
+`page`: query the page number   
+
+`page_size`: query the number of elements per page
+
+Eg. return the second page, 3 plugins per page 
+```
+/exclude?page=1&page_size=3
+```   
+
+---   
+
+**GET**   
 
 ```
 /tags
@@ -46,6 +77,7 @@ Returns the list of all available plugins' tags
 
 ---   
 
+**GET**   
 
 ```
 /tag/{tag}
@@ -61,7 +93,7 @@ Returns all the plugin that has a specific tag
 
 Eg. return the second page, 3 plugins per page 
 ```
-/tag/{tag}?page=1&page_size=2
+/tag/{tag}?page=1&page_size=3
 ```   
 
 
