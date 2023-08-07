@@ -80,7 +80,7 @@ List all the plugins from a specific author (paginated)
 
 ```json
 {
-  "author": "Nicola Corbellini"
+  "author_name": "Nicola Corbellini"
 }
 ```
 **Pagination Parameters**
