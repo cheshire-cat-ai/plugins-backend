@@ -1,7 +1,8 @@
-from fastapi import HTTPException, APIRouter
+from fastapi import HTTPException, APIRouter, Body
 from httpx import AsyncClient, RequestError
 from datetime import datetime
 from utils import is_cache_valid, fetch_plugin_json
+from typing import List
 
 
 class Endpoints:
@@ -18,6 +19,7 @@ class Endpoints:
         self.router.add_api_route("/plugins", self.read_remote_json, methods=["GET"])
         self.router.add_api_route("/tags", self.get_all_tags, methods=["GET"])
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
+        self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
         self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
@@ -107,6 +109,32 @@ class Endpoints:
             "page": page,
             "page_size": page_size,
             "plugins": matching_plugins[start_index:end_index],
+        }
+
+    @staticmethod
+    def filter_plugins_by_names(plugins, excluded):
+        return [plugin_data for plugin_data in plugins if plugin_data.get('name') not in excluded]
+
+    async def exclude_plugins(self, page: int = 1, page_size: int = 10, excluded: List[str] = Body(..., embed=True)):
+        # Check if cache is still valid, otherwise update the cache
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.read_remote_json()
+
+        plugins_to_exclude = set(excluded)
+        filtered_plugins = self.filter_plugins_by_names(self.cache["plugins"], plugins_to_exclude)
+
+        total_plugins = len(filtered_plugins)
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+
+        if start_index >= total_plugins:
+            return []
+
+        return {
+            "total_plugins": total_plugins,
+            "page": page,
+            "page_size": page_size,
+            "plugins": filtered_plugins[start_index:end_index],
         }
 
     async def error(self):
