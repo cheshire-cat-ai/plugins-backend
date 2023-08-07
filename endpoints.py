@@ -80,11 +80,14 @@ class Endpoints:
             if "tags" in plugin_data:
                 tags = plugin_data["tags"]
                 if isinstance(tags, str):
-                    all_tags.add(tags)
+                    all_tags.update(tags.split(","))
                 elif isinstance(tags, list):
-                    all_tags.update(tags)
+                    for tag in tags:
+                        all_tags.update(tag.split(","))
 
-        return list(all_tags)
+        tags_dict = {i: tag.strip() for i, tag in enumerate(all_tags)}
+
+        return tags_dict
 
     async def get_plugins_by_tag(self, tag_name: str, page: int = 1, page_size: int = 0):
         if page_size == 0:
