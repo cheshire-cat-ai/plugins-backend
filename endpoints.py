@@ -20,6 +20,7 @@ class Endpoints:
         self.router.add_api_route("/tags", self.get_all_tags, methods=["GET"])
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
         self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
+        self.router.add_api_route("/author", self.get_plugins_by_author, methods=["POST"])
         self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
@@ -138,6 +139,31 @@ class Endpoints:
             "page": page,
             "page_size": page_size,
             "plugins": filtered_plugins[start_index:end_index],
+        }
+
+    async def get_plugins_by_author(self, author: str = Body(..., embed=True), page: int = 1, page_size: int = 0):
+        if page_size == 0:
+            page_size = self.page_size
+
+        # Check if cache is still valid, otherwise update the cache
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.read_remote_json()
+
+        # Find plugins by the specified author name
+        matching_plugins = [plugin_data for plugin_data in self.cache["plugins"] if plugin_data.get("author_name") == author]
+
+        total_plugins = len(matching_plugins)
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+
+        if start_index >= total_plugins:
+            return []
+
+        return {
+            "total_plugins": total_plugins,
+            "page": page,
+            "page_size": page_size,
+            "plugins": matching_plugins[start_index:end_index],
         }
 
     async def error(self):

@@ -67,6 +67,35 @@ Eg. return the second page, 3 plugins per page
 
 ---   
 
+
+**POST**   
+
+```
+/author
+```
+
+List all the plugins from a specific author (paginated)
+
+**Request Body:**   
+
+```json
+{
+  "author": "Nicola Corbellini"
+}
+```
+**Pagination Parameters**
+
+`page`: query the page number   
+
+`page_size`: query the number of elements per page
+
+Eg. return the second page, 3 plugins per page 
+```
+/author?page=1&page_size=3
+```   
+
+---   
+
 **GET**   
 
 ```
