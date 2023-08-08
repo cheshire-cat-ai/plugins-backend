@@ -221,10 +221,20 @@ class Endpoints:
                 repo = git.Repo(repo_path)
                 origin = repo.remotes.origin
                 origin.fetch()
-                if origin.refs.master.commit == repo.head.commit:
+                
+                if ("master" in origin.refs):
+                    origin_master = origin.refs["master"]
+                else:
+                    origin_master = origin.refs["main"]
+                
+                diff = repo.git.diff(origin_master.commit,repo.head.commit)
+                
+                
+                if diff == "":
                     return repo_path
                 else:
                     shutil.rmtree(repo_path)
+            
             except Exception as e:
                 print(f"Error while checking repository status: {str(e)}")
                 shutil.rmtree(repo_path)
