@@ -125,10 +125,41 @@ Eg. return the second page, 3 plugins per page
 /tag/{tag}?page=1&page_size=3
 ```   
 
+---   
+
+
+**POST**   
+
+```
+/download
+```
+
+Download a single plugin (.zip)
+
+**Request Body:**   
+
+```json
+{
+  "plugin_name": "mood music"
+}
+```
 
 ---   
 
 
 ## Caching system
 
-Actually the cache is memory based (reset on shutdown) and it's invalidated once per day (after 1440 minutes)
+Actually almost all the cache is memory based (reset on shutdown) and it's invalidated once per day (after 1440 minutes)
+
+### File cache
+
+The first time `/download` is called two folders will be created: `zip_cache` and `repository_cache`
+
+- `zip_cache` is the folder where the zip files are stored while they are created   
+- `repository_cache` is the folder where we clone repositories
+
+We check whether the repository is already cloned and whether it's up-to-date. If the repository exists and is up-to-date, we return the existing repository path.
+If it's not up-to-date or if there's an error while checking the repository status, the existing repository is deleted, and a fresh clone is performed.
+
+This approach allows us to cache repositories and avoid unnecessary cloning when the repository is already available and up-to-date.
+If the repository has changed or there's an error, the cache is invalidated, and a new clone is performed.
