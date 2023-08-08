@@ -10,8 +10,4 @@ services:
       - 8000:8000
     volumes:
       - ./:/app
-    command:
-      - uvicorn
-      - "main:app"
-      - "--reload"
     restart: unless-stopped
