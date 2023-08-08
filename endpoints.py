@@ -1,8 +1,13 @@
 from fastapi import HTTPException, APIRouter, Body
+from fastapi.responses import FileResponse
 from httpx import AsyncClient, RequestError
 from datetime import datetime
 from utils import is_cache_valid, fetch_plugin_json
 from typing import List
+import os
+import shutil
+import git
+import zipfile
 
 
 class Endpoints:
@@ -21,6 +26,7 @@ class Endpoints:
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
         self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
         self.router.add_api_route("/author", self.get_plugins_by_author, methods=["POST"])
+        self.router.add_api_route("/download", self.download_plugin_zip, methods=["POST"])
         self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
@@ -99,7 +105,10 @@ class Endpoints:
             await self.read_remote_json()
 
         # Find plugins containing the given tag
-        matching_plugins = [plugin_data for plugin_data in self.cache["plugins"] if "tags" in plugin_data and tag_name in plugin_data["tags"]]
+        matching_plugins = []
+        for plugin_data in self.cache["plugins"]:
+            if "tags" in plugin_data and tag_name in plugin_data["tags"]:
+                matching_plugins.append(plugin_data)
 
         total_plugins = len(matching_plugins)
         start_index = (page - 1) * page_size
@@ -150,7 +159,10 @@ class Endpoints:
             await self.read_remote_json()
 
         # Find plugins by the specified author name
-        matching_plugins = [plugin_data for plugin_data in self.cache["plugins"] if plugin_data.get("author_name") == author_name]
+        matching_plugins = []
+        for plugin_data in self.cache["plugins"]:
+            if plugin_data.get("author_name") == author_name:
+                matching_plugins.append(plugin_data)
 
         total_plugins = len(matching_plugins)
         start_index = (page - 1) * page_size
@@ -166,5 +178,86 @@ class Endpoints:
             "plugins": matching_plugins[start_index:end_index],
         }
 
-    async def error(self):
+    async def download_plugin_zip(self, plugin_data: dict):
+        # Check if cache is still valid, otherwise update the cache
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.read_remote_json()
+
+        plugin_name = plugin_data.get("plugin_name")
+        if not plugin_name:
+            raise HTTPException(status_code=400, detail="Missing 'plugin_name' in request body.")
+
+        matching_plugins = [plugin for plugin in self.cache["plugins"] if plugin.get("name") == plugin_name]
+
+        if not matching_plugins:
+            raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found.")
+
+        plugin_data = matching_plugins[0]
+        plugin_url = plugin_data.get("url")
+
+        repo_path = await self.clone_repository(plugin_url, plugin_name)
+
+        zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
+
+        # Set the appropriate headers to trigger a download
+        headers = {
+            "Content-Disposition": f"attachment; filename={plugin_name}.zip"
+        }
+
+        return FileResponse(zip_filename, headers=headers, media_type="application/zip")
+
+    @staticmethod
+    async def clone_repository(plugin_url: str, plugin_name: str):
+        # Define a cache directory
+        cache_dir = "repository_cache"
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        repo_path = os.path.join(cache_dir, plugin_name)
+
+        # Check if the repository is already cloned and updated
+        if os.path.exists(repo_path):
+            try:
+                repo = git.Repo(repo_path)
+                origin = repo.remotes.origin
+                origin.fetch()
+                if origin.refs.master.commit == repo.head.commit:
+                    return repo_path
+                else:
+                    shutil.rmtree(repo_path)
+            except Exception as e:
+                print(f"Error while checking repository status: {str(e)}")
+                shutil.rmtree(repo_path)
+
+        # Clone the repository
+        try:
+            git.Repo.clone_from(plugin_url, repo_path)
+        except git.GitCommandError as e:
+            raise HTTPException(status_code=500, detail=f"Failed to clone repository: {str(e)}")
+
+        return repo_path
+
+    @staticmethod
+    async def create_plugin_zip(repo_path: str, plugin_name: str):
+        zip_cache_dir = "zip_cache"
+        if not os.path.exists(zip_cache_dir):
+            os.makedirs(zip_cache_dir)
+
+        zip_filename = os.path.join(zip_cache_dir, f"{plugin_name}.zip")
+
+        # Create a .zip file excluding .git and __pycache__ folders
+        with zipfile.ZipFile(zip_filename, "w") as zip_file:
+            for root, _, files in os.walk(repo_path):
+                # Skip .git and __pycache__ folders
+                if ".git" in root or "__pycache__" in root:
+                    continue
+
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zip_file.write(file_path, os.path.relpath(file_path, repo_path))
+
+        return zip_filename
+
+    @staticmethod
+    async def error():
         return {'error': 'This aren\'t the plugins you are looking for!'}
