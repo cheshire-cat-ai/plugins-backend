@@ -11,6 +11,7 @@ services:
     volumes:
       - ./:/app
     command:
-      - python
-      - "/app/main.py"
+      - uvicorn
+      - "main:app"
+      - "--reload"
     restart: unless-stopped

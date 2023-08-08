@@ -12,6 +12,9 @@ WORKDIR /app
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
+#Installing Git
+RUN apt-get update && apt-get install -y git
+
 # Copy the entire app directory to the container
 COPY . /app/
 
