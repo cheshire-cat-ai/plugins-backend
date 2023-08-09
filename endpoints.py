@@ -27,6 +27,7 @@ class Endpoints:
         self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
         self.router.add_api_route("/author", self.get_plugins_by_author, methods=["POST"])
         self.router.add_api_route("/download", self.download_plugin_zip, methods=["POST"])
+        self.router.add_api_route("/search", self.search_plugins, methods=["POST"])
         self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
@@ -257,6 +258,28 @@ class Endpoints:
                     zip_file.write(file_path, os.path.relpath(file_path, repo_path))
 
         return zip_filename
+
+    async def search_plugins(self, search_data: dict):
+        # Check if cache is still valid, otherwise update the cache
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.read_remote_json()
+
+        query = search_data.get("query")
+        if not query:
+            raise HTTPException(status_code=400, detail="Missing 'query' in request body.")
+
+        query_words = query.split()
+
+        matching_plugins = []
+        for plugin_data in self.cache["plugins"]:
+            plugin_matches_all_words = all(
+                any(word.lower() in field.lower() for field in plugin_data.values())
+                for word in query_words
+            )
+            if plugin_matches_all_words:
+                matching_plugins.append(plugin_data)
+
+        return matching_plugins
 
     @staticmethod
     async def error():
