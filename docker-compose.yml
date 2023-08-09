@@ -12,6 +12,10 @@ services:
     environment:
       - CORE_HOST=${CORE_HOST:-0.0.0.0}
       - CORE_PORT=${CORE_PORT:-8000}
+      - GITHUB_PLUGINS_JSON_URL=${GITHUB_PLUGINS_JSON_URL:-https://raw.githubusercontent.com/cheshire-cat-ai/awesome-plugins/main/plugins.json}
+      - DEFAULT_PAGE_SIZE=${DEFAULT_PAGE_SIZE:-10}
+      - CACHE_DURATION_MINUTES=${CACHE_DURATION_MINUTES:-1440}
+      - RELOAD=${RELOAD:-""}
     ports:
       - ${CORE_PORT:-8000}:${CORE_PORT:-8000}
     volumes:

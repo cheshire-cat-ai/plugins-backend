@@ -1,13 +1,19 @@
+import os
 from fastapi import FastAPI
 import uvicorn
 from endpoints import Endpoints
 
-
-GITHUB_PLUGINS_JSON_URL = "https://raw.githubusercontent.com/cheshire-cat-ai/awesome-plugins/main/plugins.json"
-DEFAULT_PAGE_SIZE = 10
-CACHE_DURATION_MINUTES = 1440  # Set cache duration (1 day in minutes)
+GITHUB_PLUGINS_JSON_URL = os.environ["GITHUB_PLUGINS_JSON_URL"]
+DEFAULT_PAGE_SIZE = int(os.environ["DEFAULT_PAGE_SIZE"])
+CACHE_DURATION_MINUTES = int(os.environ["CACHE_DURATION_MINUTES"])
+RELOAD = bool(os.environ["RELOAD"])
 
 app = FastAPI()
 
 backend = Endpoints(app=app, json=GITHUB_PLUGINS_JSON_URL, page_size=DEFAULT_PAGE_SIZE, cache_duration=CACHE_DURATION_MINUTES)
 
+host = os.environ["CORE_HOST"]
+port = int(os.environ["CORE_PORT"])
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host=host, port=port, reload=RELOAD)
