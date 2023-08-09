@@ -146,6 +146,24 @@ Download a single plugin (.zip)
 
 ---   
 
+**POST**   
+
+```
+/search
+```
+
+Search for a plugin.   
+This will perform a search in plugins' description, name, author and tags
+
+**Request Body:**   
+
+```json
+{
+  "query": "llm embedding nicola corbellini"
+}
+```
+
+---  
 
 ## Caching system
 
