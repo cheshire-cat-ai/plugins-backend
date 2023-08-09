@@ -3,3 +3,4 @@ httpx
 fastapi
 typing
 gitpython
+requests

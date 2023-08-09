@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import httpx
 
 
-def is_cache_valid(cache_duration, cache_timestamp):
+def is_cache_valid(cache_duration: int, cache_timestamp: dict):
     """
     Check if the cache is still valid based on the cache duration.
     """

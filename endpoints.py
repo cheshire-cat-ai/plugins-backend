@@ -1,13 +1,17 @@
+from urllib.parse import urlparse
 from fastapi import HTTPException, APIRouter, Body
 from fastapi.responses import FileResponse
 from httpx import AsyncClient, RequestError
 from datetime import datetime
+
+import requests
 from utils import is_cache_valid, fetch_plugin_json
 from typing import List
 import os
 import shutil
 import git
 import zipfile
+from io import BytesIO
 
 
 class Endpoints:
@@ -193,9 +197,25 @@ class Endpoints:
             raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found.")
 
         plugin_data = matching_plugins[0]
-        plugin_url = plugin_data.get("url")
-
-        repo_path = await self.clone_repository(plugin_url, plugin_name)
+        plugin_url = str(plugin_data.get("url"))
+        
+        #Ckeck if there is a releses zip file
+        path_url = str(urlparse(plugin_url).path)
+        url = "https://api.github.com/repos" +  path_url + "/releases"
+        response = requests.get(url)
+        if response.status_code != 200:
+                raise HTTPException(
+                    status_code = 503,
+                    detail = { "error": "Github API not available" }
+                )
+                
+        response = response.json()
+        if len(response) != 0: 
+            url_zip = response[0]["assets"][0]["browser_download_url"]
+            repo_path = await self.download_releses_plugin_zip(plugin_name,url_zip)
+        else:
+            #if not, than download the zip repo
+            repo_path = await self.clone_repository(plugin_url, plugin_name) 
 
         zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
 
@@ -228,7 +248,6 @@ class Endpoints:
                     origin_master = origin.refs["main"]
                 
                 diff = repo.git.diff(origin_master.commit,repo.head.commit)
-                
                 
                 if diff == "":
                     return repo_path
@@ -268,6 +287,37 @@ class Endpoints:
 
         return zip_filename
 
+    
+    @staticmethod
+    async def download_releses_plugin_zip(plugin_name: str, url_zip: str):
+        # Define a cache directory
+        cache_dir = "repository_cache"
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        os_path = os.path.join(cache_dir, plugin_name)
+        
+        #TODO: check if the cache is updated!
+        
+        with requests.get(url_zip, stream=True) as response:
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code = 400,
+                    detail = { "error": "" }
+                )
+            with BytesIO() as zip_buffer:
+                for chunk in response.iter_content(chunk_size=8192):
+                    zip_buffer.write(chunk)
+                
+                zip_buffer.seek(0)
+                
+                with zipfile.ZipFile(zip_buffer, "r") as zip_ref:
+                    zip_ref.extractall(os_path)
+        
+        return os_path
+            
+            
+    
     @staticmethod
     async def error():
         return {'error': 'This aren\'t the plugins you are looking for!'}
