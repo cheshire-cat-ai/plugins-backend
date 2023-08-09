@@ -203,22 +203,23 @@ class Endpoints:
         #Ckeck if there is a releses zip file
         path_url = str(urlparse(plugin_url).path)
         url = "https://api.github.com/repos" +  path_url + "/releases"
-        response = requests.get(url)
-        if response.status_code != 200:
-                raise HTTPException(
-                    status_code = 503,
-                    detail = { "error": "Github API not available" }
-                )
-                
-        response = response.json()
-        if len(response) != 0: 
-            url_zip = response[0]["assets"][0]["browser_download_url"]
-            repo_path = await self.download_releses_plugin_zip(plugin_name,url_zip)
-        else:
-            #if not, than download the zip repo
-            repo_path = await self.clone_repository(plugin_url, plugin_name) 
 
-        zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
+        async with AsyncClient() as client:
+            
+            response = await client.get(url)
+            if response.status_code != 200:
+                    raise HTTPException(
+                        status_code = 503,
+                        detail = { "error": "Github API not available" }
+                    )
+            response = response.json()
+            if len(response) != 0: 
+                url_zip = response[0]["assets"][0]["browser_download_url"]
+                zip_filename = await self.download_releses_plugin_zip(plugin_name,url_zip)
+            else:
+                #if not, than download the zip repo
+                repo_path = await self.clone_repository(plugin_url, plugin_name) 
+                zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
 
         # Set the appropriate headers to trigger a download
         headers = {
@@ -292,30 +293,31 @@ class Endpoints:
     @staticmethod
     async def download_releses_plugin_zip(plugin_name: str, url_zip: str):
         # Define a cache directory
-        cache_dir = "repository_cache"
+        cache_dir = "zip_cache"
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-
-        os_path = os.path.join(cache_dir, plugin_name)
+        
+        name_plugin = plugin_name + ".zip"
+        os_path_plugin = os.path.join(cache_dir, name_plugin)
         
         #TODO: check if the cache is updated!
         
-        with requests.get(url_zip, stream=True) as response:
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code = 400,
-                    detail = { "error": "" }
-                )
-            with BytesIO() as zip_buffer:
-                for chunk in response.iter_content(chunk_size=8192):
-                    zip_buffer.write(chunk)
+        if os.path.exists(os_path_plugin):
+            print("wa")
                 
-                zip_buffer.seek(0)
-                
-                with zipfile.ZipFile(zip_buffer, "r") as zip_ref:
-                    zip_ref.extractall(os_path)
-        
-        return os_path
+            
+        else:
+            with requests.get(url_zip, stream=True) as response:
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code = 400,
+                        detail = { "error": "" }
+                    )
+                with open(os_path_plugin, "wb") as zip_ref:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        zip_ref.write(chunk)
+                    
+            return os_path_plugin
             
             
     
