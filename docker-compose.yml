@@ -1,13 +1,19 @@
 version: '3.7'
 
+
+
+
 services:
 
   cheshire-cat-awesome-plugins-backend:
     build:
       context: .
     container_name: cheshire_cat_awesome_plugins_backend
+    environment:
+      - CORE_HOST=${CORE_HOST:-0.0.0.0}
+      - CORE_PORT=${CORE_PORT:-8000}
     ports:
-      - 8000:8000
+      - ${CORE_PORT:-8000}:${CORE_PORT:-8000}
     volumes:
       - ./:/app
     restart: unless-stopped
