@@ -5,14 +5,13 @@ from httpx import AsyncClient, RequestError
 from datetime import datetime
 
 import requests
-from utils import is_cache_valid, fetch_plugin_json
+from utils import *
 from typing import List
 import os
 import shutil
 import git
 import zipfile
 from io import BytesIO
-
 
 class Endpoints:
 
@@ -215,7 +214,8 @@ class Endpoints:
             response = response.json()
             if len(response) != 0: 
                 url_zip = response[0]["assets"][0]["browser_download_url"]
-                zip_filename = await self.download_releses_plugin_zip(plugin_name,url_zip)
+                version = response[0]["tag_name"]
+                zip_filename = await self.download_releses_plugin_zip(plugin_name,url_zip,version)
             else:
                 #if not, than download the zip repo
                 repo_path = await self.clone_repository(plugin_url, plugin_name) 
@@ -291,7 +291,7 @@ class Endpoints:
 
     
     @staticmethod
-    async def download_releses_plugin_zip(plugin_name: str, url_zip: str):
+    async def download_releses_plugin_zip(plugin_name: str, url_zip: str, version_origin: int):
         # Define a cache directory
         cache_dir = "zip_cache"
         if not os.path.exists(cache_dir):
@@ -300,12 +300,10 @@ class Endpoints:
         name_plugin = plugin_name + ".zip"
         os_path_plugin = os.path.join(cache_dir, name_plugin)
         
-        #TODO: check if the cache is updated!
+        check = check_version_zip(plugin_name,version_origin)
         
-        if os.path.exists(os_path_plugin):
-            print("wa")
-                
-            
+        if os.path.exists(os_path_plugin) and check:
+            return os_path_plugin
         else:
             with requests.get(url_zip, stream=True) as response:
                 if response.status_code != 200:
@@ -316,7 +314,6 @@ class Endpoints:
                 with open(os_path_plugin, "wb") as zip_ref:
                     for chunk in response.iter_content(chunk_size=8192):
                         zip_ref.write(chunk)
-                    
             return os_path_plugin
             
             
