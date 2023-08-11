@@ -4,14 +4,14 @@ from fastapi.responses import FileResponse
 from httpx import AsyncClient, RequestError
 from datetime import datetime
 
-import requests
+
 from utils import *
 from typing import List
 import os
 import shutil
 import git
 import zipfile
-from io import BytesIO
+
 
 class Endpoints:
 
@@ -305,14 +305,15 @@ class Endpoints:
         if os.path.exists(os_path_plugin) and check:
             return os_path_plugin
         else:
-            with requests.get(url_zip, stream=True) as response:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url_zip) 
                 if response.status_code != 200:
                     raise HTTPException(
                         status_code = 400,
                         detail = { "error": "" }
                     )
                 with open(os_path_plugin, "wb") as zip_ref:
-                    for chunk in response.iter_content(chunk_size=8192):
+                    for chunk in response.iter_bytes(chunk_size=8192):
                         zip_ref.write(chunk)
                 update_version_zip(plugin_name,version_origin)
             return os_path_plugin
