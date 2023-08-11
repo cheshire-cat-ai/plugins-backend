@@ -291,7 +291,7 @@ class Endpoints:
 
     
     @staticmethod
-    async def download_releses_plugin_zip(plugin_name: str, url_zip: str, version_origin: int):
+    async def download_releses_plugin_zip(plugin_name: str, url_zip: str, version_origin: str):
         # Define a cache directory
         cache_dir = "zip_cache"
         if not os.path.exists(cache_dir):
@@ -314,6 +314,7 @@ class Endpoints:
                 with open(os_path_plugin, "wb") as zip_ref:
                     for chunk in response.iter_content(chunk_size=8192):
                         zip_ref.write(chunk)
+                update_version_zip(plugin_name,version_origin)
             return os_path_plugin
             
             
