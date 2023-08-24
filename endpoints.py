@@ -182,7 +182,7 @@ class Endpoints:
             "plugins": matching_plugins[start_index:end_index],
         }
 
-    async def download_plugin_zip(self, plugin_data: dict):
+    async def download_plugin_zip(self, plugin_data: dict = Body({"plugin_name":""})):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
             await self.cache_plugins()
@@ -214,6 +214,7 @@ class Endpoints:
             response = response.json()
             if len(response) != 0: 
                 url_zip = response[0]["assets"][0]["browser_download_url"]
+                print(url_zip)
                 version = response[0]["tag_name"]
                 zip_filename = await self.download_releses_plugin_zip(plugin_name,url_zip,version)
             else:
@@ -306,16 +307,35 @@ class Endpoints:
             return os_path_plugin
         else:
             async with httpx.AsyncClient() as client:
-                response = await client.get(url_zip) 
+                response = await client.get(url_zip)
+                
+                """
+                Check if there is a redirect, by looping the response
+                """
+                while response.is_redirect:
+                    try:    
+                        url_location = response.headers["location"]
+                        response = await client.get(url_location)
+                    except httpx.RequestError as e:
+                        error = {}
+                        error["error"] = str(e)
+                        raise HTTPException(
+                            status_code = 400,
+                            detail = error
+                        )
+                        
                 if response.status_code != 200:
+                    error_message = f"GitHub API error: {response.text}"
                     raise HTTPException(
-                        status_code = 400,
-                        detail = { "error": "" }
+                        status_code=response.status_code,
+                        detail=error_message
                     )
+                    
                 with open(os_path_plugin, "wb") as zip_ref:
                     for chunk in response.iter_bytes(chunk_size=8192):
                         zip_ref.write(chunk)
                 update_version_zip(plugin_name,version_origin)
+                
             return os_path_plugin
             
             

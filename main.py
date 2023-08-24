@@ -12,8 +12,8 @@ app = FastAPI()
 
 backend = Endpoints(app=app, json=GITHUB_PLUGINS_JSON_URL, page_size=DEFAULT_PAGE_SIZE, cache_duration=CACHE_DURATION_MINUTES)
 
-host = os.environ["HOST"]
-port = int(os.environ["PORT"])
+host = os.getenv("HOST","0.0.0.0")
+port = int(os.getenv("PORT",8000))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=host, port=port, reload=RELOAD)

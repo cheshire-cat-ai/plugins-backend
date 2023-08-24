@@ -40,10 +40,6 @@ def update_version_zip(name_plugin: str, version: str):
         json_file.truncate()  # Clear the existing content
         json.dump(versions,json_file)
         
-        
-        
-        
-
 
 def check_version_zip(name_plugin: str, version: str) -> bool:
     """
@@ -69,33 +65,3 @@ def check_version_zip(name_plugin: str, version: str) -> bool:
                     return True
             
             return False
-                            
-    
-        
-                
-            
-    # with open(cache_json, "w") as json_file: 
-    #     if matching_plugins:
-    #         matching_plugins = matching_plugins[0]
-    #         cache_version = matching_plugins["version"]
-    #         if cache_version != version:
-    #             versions.remove(matching_plugins)
-    #             matching_plugins["version"] = version
-    #             versions.append(matching_plugins)
-    #             json.dump(versions,json_file)
-    #             return False
-    #         else:
-    #             return True
-    #     else:
-    #         data = {
-    #             "name_plugin": name_plugin,
-    #             "version": version
-    #         }
-    #         versions.append(data)
-    #         json.dump(versions,json_file)
-    #         return False
-                
-            
-    
-    
-    
