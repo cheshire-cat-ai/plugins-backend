@@ -24,7 +24,7 @@ class Endpoints:
         self.cache_timestamp = {}
         # Define FastAPI endpoints
         self.router = APIRouter()
-        self.router.add_api_route("/plugins", self.read_remote_json, methods=["GET"])
+        self.router.add_api_route("/plugins", self.get_all_plugins, methods=["GET"])
         self.router.add_api_route("/tags", self.get_all_tags, methods=["GET"])
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
         self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
@@ -34,56 +34,56 @@ class Endpoints:
         self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
-    async def read_remote_json(self, page: int = 1, page_size: int = 0):
+
+    async def cache_plugins(self):
+        try:
+            async with AsyncClient() as client:
+                response = await client.get(self.json)
+                data = response.json()
+
+                cached_plugins = []
+                for entry in data:
+                    url = entry["url"]
+                    plugin_json_url = url.replace("github.com", "raw.githubusercontent.com") + "/main/plugin.json"
+                    try:
+                        plugin_data = await fetch_plugin_json(plugin_json_url)
+                        plugin_data['url'] = url
+                        cached_plugins.append(plugin_data)
+                    except RequestError as e:
+                        error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
+                        cached_plugins.append({"error": error_msg})
+
+                # Update the cache with the new data and timestamp
+                self.cache["plugins"] = cached_plugins
+                self.cache_timestamp["plugins"] = datetime.utcnow()
+
+        except RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching data from GitHub: {str(e)}")
+
+
+    async def get_all_plugins(self, page: int = 1, page_size: int = 0):
         if page_size == 0:
             page_size = self.page_size
 
         # Check if cache is still valid
-        if is_cache_valid(self.cache_duration, self.cache_timestamp):
-            cached_plugins = self.cache["plugins"]
-        else:
-            try:
-                async with AsyncClient() as client:
-                    response = await client.get(self.json)
-                    data = response.json()
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.cache_plugins()
 
-                    total_plugins = len(data)
-                    start_index = (page - 1) * page_size
-                    end_index = start_index + page_size
-
-                    if start_index >= total_plugins:
-                        return []
-
-                    cached_plugins = []
-                    for entry in data[start_index:end_index]:
-                        url = entry["url"]
-                        plugin_json_url = url.replace("github.com", "raw.githubusercontent.com") + "/main/plugin.json"
-                        try:
-                            plugin_data = await fetch_plugin_json(plugin_json_url)
-                            plugin_data['url'] = url
-                            cached_plugins.append(plugin_data)
-                        except RequestError as e:
-                            error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
-                            cached_plugins.append({"error": error_msg})
-
-                    # Update the cache with the new data and timestamp
-                    self.cache["plugins"] = cached_plugins
-                    self.cache_timestamp["plugins"] = datetime.utcnow()
-
-            except RequestError as e:
-                raise HTTPException(status_code=500, detail=f"Error fetching GitHub data: {str(e)}")
-
+        # Return paginated data from the cache
+        cached_plugins = self.cache["plugins"]
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
         return {
             "total_plugins": len(cached_plugins),
             "page": page,
             "page_size": page_size,
-            "plugins": cached_plugins,
+            "plugins": cached_plugins[start_index:end_index],
         }
 
     async def get_all_tags(self):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         # Get all tags from plugin data
         all_tags = set()
@@ -106,7 +106,7 @@ class Endpoints:
 
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         # Find plugins containing the given tag
         matching_plugins = []
@@ -135,7 +135,7 @@ class Endpoints:
     async def exclude_plugins(self, page: int = 1, page_size: int = 10, excluded: List[str] = Body(..., embed=True)):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         plugins_to_exclude = set(excluded)
         filtered_plugins = self.filter_plugins_by_names(self.cache["plugins"], plugins_to_exclude)
@@ -160,7 +160,7 @@ class Endpoints:
 
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         # Find plugins by the specified author name
         matching_plugins = []
@@ -185,7 +185,7 @@ class Endpoints:
     async def download_plugin_zip(self, plugin_data: dict):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         plugin_name = plugin_data.get("plugin_name")
         if not plugin_name:
@@ -323,7 +323,7 @@ class Endpoints:
     async def search_plugins(self, search_data: dict):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         query = search_data.get("query")
         if not query:
