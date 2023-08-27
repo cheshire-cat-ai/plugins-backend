@@ -1,8 +1,8 @@
+from urllib.parse import urlparse
 from fastapi import HTTPException, APIRouter, Body
 from fastapi.responses import FileResponse
 from httpx import AsyncClient, RequestError
-from datetime import datetime
-from utils import is_cache_valid, fetch_plugin_json
+from utils import *
 from typing import List
 import os
 import shutil
@@ -12,16 +12,16 @@ import zipfile
 
 class Endpoints:
 
-    def __init__(self, app, json, cache_duration, page_size):
+    def __init__(self, app, plugin_json, cache_duration, page_size):
         self.cache_duration = cache_duration
-        self.json = json
+        self.json = plugin_json
         self.page_size = page_size
         self.app = app
         self.cache = {}
         self.cache_timestamp = {}
         # Define FastAPI endpoints
         self.router = APIRouter()
-        self.router.add_api_route("/plugins", self.read_remote_json, methods=["GET"])
+        self.router.add_api_route("/plugins", self.get_all_plugins, methods=["GET"])
         self.router.add_api_route("/tags", self.get_all_tags, methods=["GET"])
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
         self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
@@ -31,56 +31,54 @@ class Endpoints:
         self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
-    async def read_remote_json(self, page: int = 1, page_size: int = 0):
+    async def cache_plugins(self):
+        try:
+            async with AsyncClient() as client:
+                response = await client.get(self.json)
+                data = response.json()
+
+                cached_plugins = []
+                for entry in data:
+                    url = entry["url"]
+                    plugin_json_url = url.replace("github.com", "raw.githubusercontent.com") + "/main/plugin.json"
+                    try:
+                        plugin_data = await fetch_plugin_json(plugin_json_url)
+                        plugin_data['url'] = url
+                        cached_plugins.append(plugin_data)
+                    except RequestError as e:
+                        error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
+                        cached_plugins.append({"error": error_msg})
+
+                # Update the cache with the new data and timestamp
+                self.cache["plugins"] = cached_plugins
+                self.cache_timestamp["plugins"] = datetime.utcnow()
+
+        except RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching data from GitHub: {str(e)}")
+
+    async def get_all_plugins(self, page: int = 1, page_size: int = 0):
         if page_size == 0:
             page_size = self.page_size
 
         # Check if cache is still valid
-        if is_cache_valid(self.cache_duration, self.cache_timestamp):
-            cached_plugins = self.cache["plugins"]
-        else:
-            try:
-                async with AsyncClient() as client:
-                    response = await client.get(self.json)
-                    data = response.json()
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.cache_plugins()
 
-                    total_plugins = len(data)
-                    start_index = (page - 1) * page_size
-                    end_index = start_index + page_size
-
-                    if start_index >= total_plugins:
-                        return []
-
-                    cached_plugins = []
-                    for entry in data[start_index:end_index]:
-                        url = entry["url"]
-                        plugin_json_url = url.replace("github.com", "raw.githubusercontent.com") + "/main/plugin.json"
-                        try:
-                            plugin_data = await fetch_plugin_json(plugin_json_url)
-                            plugin_data['url'] = url
-                            cached_plugins.append(plugin_data)
-                        except RequestError as e:
-                            error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
-                            cached_plugins.append({"error": error_msg})
-
-                    # Update the cache with the new data and timestamp
-                    self.cache["plugins"] = cached_plugins
-                    self.cache_timestamp["plugins"] = datetime.utcnow()
-
-            except RequestError as e:
-                raise HTTPException(status_code=500, detail=f"Error fetching GitHub data: {str(e)}")
-
+        # Return paginated data from the cache
+        cached_plugins = self.cache["plugins"]
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
         return {
             "total_plugins": len(cached_plugins),
             "page": page,
             "page_size": page_size,
-            "plugins": cached_plugins,
+            "plugins": cached_plugins[start_index:end_index],
         }
 
     async def get_all_tags(self):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         # Get all tags from plugin data
         all_tags = set()
@@ -103,7 +101,7 @@ class Endpoints:
 
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         # Find plugins containing the given tag
         matching_plugins = []
@@ -132,7 +130,7 @@ class Endpoints:
     async def exclude_plugins(self, page: int = 1, page_size: int = 10, excluded: List[str] = Body(..., embed=True)):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         plugins_to_exclude = set(excluded)
         filtered_plugins = self.filter_plugins_by_names(self.cache["plugins"], plugins_to_exclude)
@@ -157,7 +155,7 @@ class Endpoints:
 
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         # Find plugins by the specified author name
         matching_plugins = []
@@ -179,10 +177,10 @@ class Endpoints:
             "plugins": matching_plugins[start_index:end_index],
         }
 
-    async def download_plugin_zip(self, plugin_data: dict):
+    async def download_plugin_zip(self, plugin_data: dict = Body({"plugin_name": ""})):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         plugin_name = plugin_data.get("plugin_name")
         if not plugin_name:
@@ -194,11 +192,29 @@ class Endpoints:
             raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found.")
 
         plugin_data = matching_plugins[0]
-        plugin_url = plugin_data.get("url")
+        plugin_url = str(plugin_data.get("url"))
+        
+        # Check if there is a release zip file
+        path_url = str(urlparse(plugin_url).path)
+        url = "https://api.github.com/repos" + path_url + "/releases"
 
-        repo_path = await self.clone_repository(plugin_url, plugin_name)
-
-        zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
+        async with AsyncClient() as client:
+            
+            response = await client.get(url)
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=503,
+                    detail={"error": "Github API not available"}
+                )
+            response = response.json()
+            if len(response) != 0: 
+                url_zip = response[0]["assets"][0]["browser_download_url"]
+                version = response[0]["tag_name"]
+                zip_filename = await self.download_releses_plugin_zip(plugin_name, url_zip, version)
+            else:
+                # if not, download the zip repo
+                repo_path = await self.clone_repository(plugin_url, plugin_name) 
+                zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
 
         # Set the appropriate headers to trigger a download
         headers = {
@@ -222,10 +238,19 @@ class Endpoints:
                 repo = git.Repo(repo_path)
                 origin = repo.remotes.origin
                 origin.fetch()
-                if origin.refs.master.commit == repo.head.commit:
+                
+                if "master" in origin.refs:
+                    origin_master = origin.refs["master"]
+                else:
+                    origin_master = origin.refs["main"]
+                
+                diff = repo.git.diff(origin_master.commit, repo.head.commit)
+                
+                if diff == "":
                     return repo_path
                 else:
                     shutil.rmtree(repo_path)
+            
             except Exception as e:
                 print(f"Error while checking repository status: {str(e)}")
                 shutil.rmtree(repo_path)
@@ -259,10 +284,56 @@ class Endpoints:
 
         return zip_filename
 
+    @staticmethod
+    async def download_releses_plugin_zip(plugin_name: str, url_zip: str, version_origin: str):
+        # Define a cache directory
+        cache_dir = "zip_cache"
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        
+        name_plugin = plugin_name + ".zip"
+        os_path_plugin = os.path.join(cache_dir, name_plugin)
+        
+        check = check_version_zip(plugin_name, version_origin)
+        
+        if os.path.exists(os_path_plugin) and check:
+            return os_path_plugin
+        else:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url_zip)
+                
+                """
+                Check if there is a redirect, by looping the response
+                """
+                while response.is_redirect:
+                    try:    
+                        url_location = response.headers["location"]
+                        response = await client.get(url_location)
+                    except httpx.RequestError as e:
+                        error = {"error": str(e)}
+                        raise HTTPException(
+                            status_code=400,
+                            detail=error
+                        )
+                        
+                if response.status_code != 200:
+                    error_message = f"GitHub API error: {response.text}"
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=error_message
+                    )
+                    
+                with open(os_path_plugin, "wb") as zip_ref:
+                    for chunk in response.iter_bytes(chunk_size=8192):
+                        zip_ref.write(chunk)
+                update_version_zip(plugin_name, version_origin)
+                
+            return os_path_plugin
+
     async def search_plugins(self, search_data: dict):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
-            await self.read_remote_json()
+            await self.cache_plugins()
 
         query = search_data.get("query")
         if not query:
