@@ -1,8 +1,11 @@
+from urllib.parse import urlparse
 from fastapi import HTTPException, APIRouter, Body
 from fastapi.responses import FileResponse
 from httpx import AsyncClient, RequestError
 from datetime import datetime
-from utils import is_cache_valid, fetch_plugin_json
+
+
+from utils import *
 from typing import List
 import os
 import shutil
@@ -179,7 +182,7 @@ class Endpoints:
             "plugins": matching_plugins[start_index:end_index],
         }
 
-    async def download_plugin_zip(self, plugin_data: dict):
+    async def download_plugin_zip(self, plugin_data: dict = Body({"plugin_name":""})):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
             await self.cache_plugins()
@@ -194,11 +197,29 @@ class Endpoints:
             raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found.")
 
         plugin_data = matching_plugins[0]
-        plugin_url = plugin_data.get("url")
+        plugin_url = str(plugin_data.get("url"))
+        
+        #Ckeck if there is a releses zip file
+        path_url = str(urlparse(plugin_url).path)
+        url = "https://api.github.com/repos" +  path_url + "/releases"
 
-        repo_path = await self.clone_repository(plugin_url, plugin_name)
-
-        zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
+        async with AsyncClient() as client:
+            
+            response = await client.get(url)
+            if response.status_code != 200:
+                    raise HTTPException(
+                        status_code = 503,
+                        detail = { "error": "Github API not available" }
+                    )
+            response = response.json()
+            if len(response) != 0: 
+                url_zip = response[0]["assets"][0]["browser_download_url"]
+                version = response[0]["tag_name"]
+                zip_filename = await self.download_releses_plugin_zip(plugin_name,url_zip,version)
+            else:
+                #if not, than download the zip repo
+                repo_path = await self.clone_repository(plugin_url, plugin_name) 
+                zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
 
         # Set the appropriate headers to trigger a download
         headers = {
@@ -222,10 +243,19 @@ class Endpoints:
                 repo = git.Repo(repo_path)
                 origin = repo.remotes.origin
                 origin.fetch()
-                if origin.refs.master.commit == repo.head.commit:
+                
+                if ("master" in origin.refs):
+                    origin_master = origin.refs["master"]
+                else:
+                    origin_master = origin.refs["main"]
+                
+                diff = repo.git.diff(origin_master.commit,repo.head.commit)
+                
+                if diff == "":
                     return repo_path
                 else:
                     shutil.rmtree(repo_path)
+            
             except Exception as e:
                 print(f"Error while checking repository status: {str(e)}")
                 shutil.rmtree(repo_path)
@@ -259,6 +289,56 @@ class Endpoints:
 
         return zip_filename
 
+    
+    @staticmethod
+    async def download_releses_plugin_zip(plugin_name: str, url_zip: str, version_origin: str):
+        # Define a cache directory
+        cache_dir = "zip_cache"
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        
+        name_plugin = plugin_name + ".zip"
+        os_path_plugin = os.path.join(cache_dir, name_plugin)
+        
+        check = check_version_zip(plugin_name,version_origin)
+        
+        if os.path.exists(os_path_plugin) and check:
+            return os_path_plugin
+        else:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url_zip)
+                
+                """
+                Check if there is a redirect, by looping the response
+                """
+                while response.is_redirect:
+                    try:    
+                        url_location = response.headers["location"]
+                        response = await client.get(url_location)
+                    except httpx.RequestError as e:
+                        error = {}
+                        error["error"] = str(e)
+                        raise HTTPException(
+                            status_code = 400,
+                            detail = error
+                        )
+                        
+                if response.status_code != 200:
+                    error_message = f"GitHub API error: {response.text}"
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=error_message
+                    )
+                    
+                with open(os_path_plugin, "wb") as zip_ref:
+                    for chunk in response.iter_bytes(chunk_size=8192):
+                        zip_ref.write(chunk)
+                update_version_zip(plugin_name,version_origin)
+                
+            return os_path_plugin
+            
+            
+    
     async def search_plugins(self, search_data: dict):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
