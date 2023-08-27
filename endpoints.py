@@ -214,7 +214,6 @@ class Endpoints:
             response = response.json()
             if len(response) != 0: 
                 url_zip = response[0]["assets"][0]["browser_download_url"]
-                print(url_zip)
                 version = response[0]["tag_name"]
                 zip_filename = await self.download_releses_plugin_zip(plugin_name,url_zip,version)
             else:

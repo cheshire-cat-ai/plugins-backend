@@ -21,24 +21,34 @@ async def fetch_plugin_json(url):
 
 
 def update_version_zip(name_plugin: str, version: str):
-    with open("zip_cache/versions.json", "r+") as json_file:
-        versions: list[dict] = json.load(json_file)
-        if len(versions) != 0:
-            for index, matching_plugins in enumerate(versions):
-                #update
-                if matching_plugins.get("name_plugin") == name_plugin:
-                    data = versions[index]
-                    data["version"] = version
-        else:
-            plugin_version = {
-                    "name_plugin": name_plugin,
-                    "version": version
-            }
-            versions.append(plugin_version)
+    cache_path = "zip_cache/versions.json"
+
+    # Load existing versions from the JSON file
+    if os.path.exists(cache_path):
+        with open(cache_path, "r") as json_file:
+            versions = json.load(json_file)
+    else:
+        versions = []
         
-        json_file.seek(0)  # Move to the beginning of the file
-        json_file.truncate()  # Clear the existing content
-        json.dump(versions,json_file)
+    # Search for the plugin by name_plugin
+    plugin_found = False
+    for index, matching_plugins in enumerate(versions):
+        if matching_plugins["name_plugin"] == name_plugin:
+            plugin_found = not plugin_found
+            data = versions[index]
+            data["version"] = version
+    # If plugin not found, add it
+    if not plugin_found:
+        versions.append({"name_plugin": name_plugin, "version": version})
+    
+    # Save the updated list of versions to a variable
+    updated_versions = versions
+    
+    # Write the updated list back to the JSON file
+    with open(cache_path, "w") as json_file:
+        json.dump(updated_versions, json_file, indent=4)
+        
+        
         
 
 def check_version_zip(name_plugin: str, version: str) -> bool:
