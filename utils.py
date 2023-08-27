@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 import os
-from fastapi import HTTPException
 import httpx
 import json
+
 
 def is_cache_valid(cache_duration: int, cache_timestamp: dict):
     """
@@ -47,9 +47,7 @@ def update_version_zip(name_plugin: str, version: str):
     # Write the updated list back to the JSON file
     with open(cache_path, "w") as json_file:
         json.dump(updated_versions, json_file, indent=4)
-        
-        
-        
+
 
 def check_version_zip(name_plugin: str, version: str) -> bool:
     """
@@ -61,10 +59,10 @@ def check_version_zip(name_plugin: str, version: str) -> bool:
     # Define a cache directory
     cache_json = "zip_cache/" + "versions.json"
     if not os.path.exists(cache_json):
-            with open(cache_json, "w") as json_file:
-                data = []
-                json.dump(data,json_file)
-                return False
+        with open(cache_json, "w") as json_file:
+            data = []
+            json.dump(data, json_file)
+            return False
     else:
         with open(cache_json, "r") as json_file:
             versions: list[dict] = json.load(json_file) 

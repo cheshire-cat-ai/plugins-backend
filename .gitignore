@@ -137,5 +137,6 @@ cython_debug/
 
 # PyCharm
 .idea/
+
+# vscode
 .vscode/settings.json
-test.json
