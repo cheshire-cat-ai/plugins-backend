@@ -1,7 +1,15 @@
 # Awesome plugins backend
 The backend of The Cheshire Cat plugin directory
 
-## Getting started
+## Getting started...
+
+### Using Docker
+
+```bash
+$ docker compose up
+```
+
+### Using local python environment
 
 Install requirements:   
 
@@ -16,127 +24,129 @@ $ python ./main.py
 ```
 
 
-## Endpoint list
+## API Documentation
 
-**GET**   
+Welcome to the API documentation for our plugin directory. Below, you'll find a list of available endpoints to interact with the system.
 
-```
-/plugins
-```
+### Index
 
-List all the plugins (paginated)
+- [List all Plugins (Paginated)](#list-all-plugins-paginated)
+- [List Excluded Plugins (Paginated)](#list-excluded-plugins-paginated)
+- [List Plugins by Author (Paginated)](#list-plugins-by-author-paginated)
+- [Get All Available Tags](#get-all-available-tags)
+- [Get Plugins by Tag (Paginated)](#get-plugins-by-tag-paginated)
+- [Download a Single Plugin (.zip)](#download-a-single-plugin-zip)
+- [Search for a Plugin](#search-for-a-plugin)
 
-**Pagination Parameters**
+---
 
-`page`: query the page number   
+### List all Plugins (Paginated)
 
-`page_size`: query the number of elements per page
+**GET** `/plugins`
 
-Eg. return the second page, 3 plugins per page 
-```
+List all the plugins.
+
+**Pagination Parameters:**
+
+- `page`: Query the page number.
+- `page_size`: Query the number of elements per page.
+
+Example: Return the second page, 3 plugins per page
+
+```plaintext
 /plugins?page=1&page_size=3
-```   
-
----   
-
-**POST**   
-
-```
-/excluded
 ```
 
-List the plugins excluding the ones you pass in the body (paginated)
+---
 
-**Request Body:**   
+### List Excluded Plugins (Paginated)
+
+**POST** `/excluded`
+
+List the plugins excluding the ones you pass in the body.
+
+**Request Body:**
 
 ```json
 {
   "excluded": ["plugin to exclude", "other plugin I don't want"]
 }
 ```
-**Pagination Parameters**
 
-`page`: query the page number   
+**Pagination Parameters:**
 
-`page_size`: query the number of elements per page
+- `page`: Query the page number.
+- `page_size`: Query the number of elements per page.
 
-Eg. return the second page, 3 plugins per page 
-```
+Example: Return the second page, 3 plugins per page
+
+```plaintext
 /exclude?page=1&page_size=3
-```   
-
----   
-
-
-**POST**   
-
-```
-/author
 ```
 
-List all the plugins from a specific author (paginated)
+---
 
-**Request Body:**   
+### List Plugins by Author (Paginated)
+
+**POST** `/author`
+
+List all the plugins from a specific author.
+
+**Request Body:**
 
 ```json
 {
   "author_name": "Nicola Corbellini"
 }
 ```
-**Pagination Parameters**
 
-`page`: query the page number   
+**Pagination Parameters:**
 
-`page_size`: query the number of elements per page
+- `page`: Query the page number.
+- `page_size`: Query the number of elements per page.
 
-Eg. return the second page, 3 plugins per page 
-```
+Example: Return the second page, 3 plugins per page
+
+```plaintext
 /author?page=1&page_size=3
-```   
-
----   
-
-**GET**   
-
-```
-/tags
 ```
 
-Returns the list of all available plugins' tags   
+---
 
----   
+### Get All Available Tags
 
-**GET**   
+**GET** `/tags`
 
-```
-/tag/{tag}
-```
+Returns the list of all available plugins' tags.
 
-Returns all the plugin that has a specific tag   
+---
 
-**Pagination Parameters**
+### Get Plugins by Tag (Paginated)
 
-`page`: query the page number   
+**GET** `/tag/{tag}`
 
-`page_size`: query the number of elements per page
+Returns all the plugins that have a specific tag.
 
-Eg. return the second page, 3 plugins per page 
-```
+**Pagination Parameters:**
+
+- `page`: Query the page number.
+- `page_size`: Query the number of elements per page.
+
+Example: Return the second page, 3 plugins per page
+
+```plaintext
 /tag/{tag}?page=1&page_size=3
-```   
-
----   
-
-
-**POST**   
-
-```
-/download
 ```
 
-Download a single plugin (.zip)
+---
 
-**Request Body:**   
+### Download a Single Plugin (.zip)
+
+**POST** `/download`
+
+Download a single plugin in `.zip` format.
+
+**Request Body:**
 
 ```json
 {
@@ -144,18 +154,15 @@ Download a single plugin (.zip)
 }
 ```
 
----   
+---
 
-**POST**   
+### Search for a Plugin
 
-```
-/search
-```
+**POST** `/search`
 
-Search for a plugin.   
-This will perform a search in plugins' description, name, author and tags
+Search for a plugin. This will perform a search in plugins' description, name, author, and tags.
 
-**Request Body:**   
+**Request Body:**
 
 ```json
 {
@@ -165,18 +172,29 @@ This will perform a search in plugins' description, name, author and tags
 
 ---  
 
-## Caching system
+## Plugin manifest validation
 
-Actually almost all the cache is memory based (reset on shutdown) and it's invalidated once per day (after 1440 minutes)
+The validation process for the plugin.json manifest ensures the integrity and usability of plugins within the repository. 
+To successfully pass validation, the plugin.json file must reside within the main branch of the repository and include essential fields such as "name" and "author_name". 
+While other fields remain optional, including additional information not only enhances the user experience but also improves searchability within the directory. 
+Maintaining these validation criteria not only guarantees the quality of plugins but also contributes to a more robust and user-friendly plugin ecosystem.
 
-### File cache
+## Caching System
 
-The first time `/download` is called two folders will be created: `zip_cache` and `repository_cache`
+Our caching system is designed to optimize performance and reduce redundant operations. 
+Currently, most of the caching is memory-based, which means it gets reset upon system shutdown. 
+Additionally, our cache is **invalidated on a daily basis**, precisely every 1440 minutes.
 
-- `zip_cache` is the folder where the release zip files are stored or where they are created if there are no releases on GitHub.   
-- `repository_cache` is the folder where we clone repositories that has no releases.
+### File Cache
 
-We check whether the repository/release is already downloaded and whether it's up-to-date. If the repository exists and is up-to-date, we return the existing zip file.
-If it's not up-to-date or if there's an error while checking the repository status, the existing repository is deleted, and a fresh download is performed.
+When the `/download` endpoint is initially called, our system sets up two essential folders: `zip_cache` and `repository_cache`.
 
-This approach allows us to cache repositories and avoid unnecessary cloning when the repository is already available and up-to-date.
+- `zip_cache` stores the release zip files or acts as a creation location if there are no existing releases on GitHub.
+- `repository_cache` is used to clone repositories that lack releases.
+
+We employ a comprehensive strategy to determine whether a repository or release has been downloaded and whether it's up-to-date. 
+If the repository is present and current, we retrieve and provide the existing zip file. 
+However, if the repository is outdated or if any issues arise while verifying its status, the existing repository is deleted. 
+Subsequently, we initiate a fresh download to ensure accuracy.
+
+This approach serves two key purposes: efficient repository caching and the prevention of unnecessary cloning operations when a repository is already available and up-to-date.
