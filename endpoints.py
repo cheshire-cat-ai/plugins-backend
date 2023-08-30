@@ -184,22 +184,22 @@ class Endpoints:
             "plugins": matching_plugins[start_index:end_index],
         }
 
-    async def download_plugin_zip(self, plugin_data: dict = Body({"plugin_name": ""})):
+    async def download_plugin_zip(self, plugin_data: dict = Body({"url": ""})):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
             await self.cache_plugins()
 
-        plugin_name = plugin_data.get("plugin_name")
-        if not plugin_name:
-            raise HTTPException(status_code=400, detail="Missing 'plugin_name' in request body.")
+        plugin_url = plugin_data.get("url")
+        if not plugin_url:
+            raise HTTPException(status_code=400, detail="Missing 'url' in request body.")
 
-        matching_plugins = [plugin for plugin in self.cache["plugins"] if plugin.get("name") == plugin_name]
+        matching_plugins = [plugin for plugin in self.cache["plugins"] if plugin.get("url") == plugin_url]
 
         if not matching_plugins:
-            raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found.")
+            raise HTTPException(status_code=404, detail=f"Plugin url '{plugin_url}' not found.")
 
         plugin_data = matching_plugins[0]
-        plugin_url = str(plugin_data.get("url"))
+        plugin_name = str(plugin_data.get("name"))
 
         # Check if there is a release zip file
         path_url = str(urlparse(plugin_url).path)

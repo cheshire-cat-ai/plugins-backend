@@ -150,7 +150,7 @@ Download a single plugin in `.zip` format.
 
 ```json
 {
-  "plugin_name": "mood music"
+  "url": "https://github.com/pieroit/meow-todo-list"
 }
 ```
 
