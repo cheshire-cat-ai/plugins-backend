@@ -4,6 +4,8 @@ from fastapi.responses import FileResponse
 from httpx import AsyncClient, RequestError
 from utils import *
 from typing import List
+from logger import error_log
+from analytics import update_analytics
 import os
 import shutil
 import git
@@ -51,17 +53,21 @@ class Endpoints:
                             plugin_data['url'] = url
                             cached_plugins.append(plugin_data)
                         else:
-                            print(f"Skipping plugin with missing required fields: {url}")
+                            message = f"Skipping plugin with missing required fields: {url}"
+                            error_log(message, "INFO")
                     except RequestError as e:
                         error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
                         cached_plugins.append({"error": error_msg})
+                        error_log(error_msg, "ERROR")
 
                 # Update the cache with the new data and timestamp
                 self.cache["plugins"] = cached_plugins
                 self.cache_timestamp["plugins"] = datetime.utcnow()
 
         except RequestError as e:
-            raise HTTPException(status_code=500, detail=f"Error fetching data from GitHub: {str(e)}")
+            message = f"Error fetching data from GitHub: {str(e)}"
+            error_log(f"Can't cache plugins. {message}", "ERROR")
+            raise HTTPException(status_code=500, detail=message)
 
     async def get_all_plugins(self, page: int = 1, page_size: int = 0):
         if page_size == 0:
@@ -228,6 +234,9 @@ class Endpoints:
             "Content-Disposition": f"attachment; filename={plugin_name}.zip"
         }
 
+        # Update analytics count
+        update_analytics(plugin_url)
+
         return FileResponse(zip_filename, headers=headers, media_type="application/zip")
 
     @staticmethod
@@ -259,14 +268,17 @@ class Endpoints:
                     shutil.rmtree(repo_path)
 
             except Exception as e:
-                print(f"Error while checking repository status: {str(e)}")
+                message = f"Error while checking repository status: {str(e)}"
+                error_log(f"{repo_path} - {message}", "WARNING")
                 shutil.rmtree(repo_path)
 
         # Clone the repository
         try:
             git.Repo.clone_from(plugin_url, repo_path)
         except git.GitCommandError as e:
-            raise HTTPException(status_code=500, detail=f"Failed to clone repository: {str(e)}")
+            message = f"Failed to clone repository: {str(e)}"
+            error_log(f"{repo_path} - {message}")
+            raise HTTPException(status_code=500, detail=message)
 
         return repo_path
 

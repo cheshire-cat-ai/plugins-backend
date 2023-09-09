@@ -198,3 +198,11 @@ However, if the repository is outdated or if any issues arise while verifying it
 Subsequently, we initiate a fresh download to ensure accuracy.
 
 This approach serves two key purposes: efficient repository caching and the prevention of unnecessary cloning operations when a repository is already available and up-to-date.
+
+## Analytics
+
+The implementation of analytics within our plugin's directory is designed with utmost consideration for user privacy.
+We maintain an `analytics.json` file that is updated each time a plugin is downloaded, providing us with valuable insights into usage trends without compromising individual user identities.
+Importantly, we do not track unique downloads or store any sensitive data such as IP addresses.
+Our approach to analytics prioritizes user privacy, ensuring that our data collection methods, while not overly precise, remain fair and respectful of the privacy of our users.
+This commitment to data ethics underscores our dedication to creating a transparent and user-friendly environment within our plugin ecosystem.
