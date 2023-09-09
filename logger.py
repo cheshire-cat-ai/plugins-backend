@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 # Configure the logger
 logging.basicConfig(
     filename='error.log',
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
     datefmt='%d/%m/%Y-%H:%M:%S'
 )

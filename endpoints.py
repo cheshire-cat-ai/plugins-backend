@@ -5,6 +5,7 @@ from httpx import AsyncClient, RequestError
 from utils import *
 from typing import List
 from logger import error_log
+from analytics import update_analytics
 import os
 import shutil
 import git
@@ -232,6 +233,9 @@ class Endpoints:
         headers = {
             "Content-Disposition": f"attachment; filename={plugin_name}.zip"
         }
+
+        # Update analytics count
+        update_analytics(plugin_url)
 
         return FileResponse(zip_filename, headers=headers, media_type="application/zip")
 
