@@ -221,8 +221,24 @@ class Endpoints:
                 )
             response = response.json()
             if len(response) != 0:
-                url_zip = response[0]["assets"][0]["browser_download_url"]
-                version = response[0]["tag_name"]
+                i = 0
+                assets = response[i]["assets"] # list of assets with files differents from Source code zips
+                try:
+                    while len(assets) == 0:
+                        i += 1
+                        assets = response[i]["assets"]
+                except IndexError:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={"error": "No release zip file found"}
+                    )
+                        
+
+                url_zip = assets[0]["browser_download_url"]
+                version = response[i]["tag_name"]
+                if i != 0:
+                    error_log(f"The plugin {plugin_name} has no release zip file or was pushed by hand, the version pulled is {version}", "WARNING")
+                    
                 zip_filename = await self.download_releses_plugin_zip(plugin_name, url_zip, version)
             else:
                 # if not, download the zip repo
