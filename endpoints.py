@@ -3,7 +3,7 @@ from fastapi import HTTPException, APIRouter, Body
 from fastapi.responses import FileResponse
 from httpx import AsyncClient, RequestError
 from utils import *
-from typing import List
+from typing import List, Dict
 from logger import error_log
 from analytics import update_analytics
 import os
@@ -30,6 +30,7 @@ class Endpoints:
         self.router.add_api_route("/author", self.get_plugins_by_author, methods=["POST"])
         self.router.add_api_route("/download", self.download_plugin_zip, methods=["POST"])
         self.router.add_api_route("/search", self.search_plugins, methods=["POST"])
+        self.router.add_api_route("/analytics", self.get_analytics, methods=["GET"])
         self.router.add_api_route("/", self.error, methods=["GET"])
         app.include_router(self.router)
 
@@ -189,6 +190,10 @@ class Endpoints:
             "page_size": page_size,
             "plugins": matching_plugins[start_index:end_index],
         }
+    @staticmethod
+    async def get_analytics() -> Dict[str, int]:
+        analytics_data = read_analytics_data()
+        return analytics_data
 
     async def download_plugin_zip(self, plugin_data: dict = Body({"url": ""})):
         # Check if cache is still valid, otherwise update the cache
@@ -235,7 +240,7 @@ class Endpoints:
                     error_log(f"The plugin {plugin_name} has no release zip file or was pushed by hand, the version pulled is {version}", "WARNING")
 
                 zip_filename = await self.download_releses_plugin_zip(plugin_name, url_zip, version)
-            except (IndexError,KeyError):
+            except (IndexError, KeyError):
                 # if you are here, there aren't any assets in the response. So, download the zip repo
                 repo_path = await self.clone_repository(plugin_url, plugin_name)
                 zip_filename = await self.create_plugin_zip(repo_path, plugin_name)

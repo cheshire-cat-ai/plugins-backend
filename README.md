@@ -37,6 +37,8 @@ Welcome to the API documentation for our plugin directory. Below, you'll find a 
 - [Get Plugins by Tag (Paginated)](#get-plugins-by-tag-paginated)
 - [Download a Single Plugin (.zip)](#download-a-single-plugin-zip)
 - [Search for a Plugin](#search-for-a-plugin)
+- [Get Plugins Analytics](#get-plugins-analytics)
+
 
 ---
 
@@ -171,6 +173,15 @@ Search for a plugin. This will perform a search in plugins' description, name, a
 ```
 
 ---  
+
+### Get Plugins' Analytics
+
+**GET** `/analytics`
+
+Returns all the plugins' analytics.
+
+---  
+
 
 ## Plugin manifest validation
 
