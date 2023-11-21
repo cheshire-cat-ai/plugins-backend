@@ -39,6 +39,7 @@ class Endpoints:
             async with AsyncClient() as client:
                 response = await client.get(self.json)
                 data = response.json()
+                analytics_data = read_analytics_data()
 
                 cached_plugins = []
                 for entry in data:
@@ -55,11 +56,20 @@ class Endpoints:
                             cached_plugins.append(plugin_data)
                         else:
                             message = f"Skipping plugin with missing required fields: {url}"
-                            error_log(message, "INFO")
+                            error_log(message, "WARNING")
                     except RequestError as e:
                         error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
                         cached_plugins.append({"error": error_msg})
                         error_log(error_msg, "ERROR")
+
+                for plugin in cached_plugins:
+                    # Use the 'url' from the item to find the corresponding analytics data
+                    downloads = analytics_data.get(plugin['url'])
+                    # If analytics data is found, add a 'downloads' key to the item with the value
+                    if downloads is not None:
+                        plugin['downloads'] = downloads
+                    else:
+                        plugin['downloads'] = 0
 
                 # Update the cache with the new data and timestamp
                 self.cache["plugins"] = cached_plugins
