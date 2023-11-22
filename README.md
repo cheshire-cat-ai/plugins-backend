@@ -48,15 +48,22 @@ Welcome to the API documentation for our plugin directory. Below, you'll find a 
 
 List all the plugins.
 
+**Order Parameter:**
+
+- `order`: Sort plugins list
+  - `oldest`: Sort from oldest to newest **(default)**
+  - `newest`: Sort from newest to older
+  - `popular`: Sort from most popular
+
 **Pagination Parameters:**
 
 - `page`: Query the page number.
 - `page_size`: Query the number of elements per page.
 
-Example: Return the second page, 3 plugins per page
+Example: Return the second page, 3 plugins per page ordered from newest to oldest
 
 ```plaintext
-/plugins?page=1&page_size=3
+/plugins?page=2&page_size=3&order=newest
 ```
 
 ---
@@ -83,7 +90,7 @@ List the plugins excluding the ones you pass in the body.
 Example: Return the second page, 3 plugins per page
 
 ```plaintext
-/exclude?page=1&page_size=3
+/exclude?page=2&page_size=3
 ```
 
 ---
@@ -110,7 +117,7 @@ List all the plugins from a specific author.
 Example: Return the second page, 3 plugins per page
 
 ```plaintext
-/author?page=1&page_size=3
+/author?page=2&page_size=3
 ```
 
 ---
@@ -137,7 +144,7 @@ Returns all the plugins that have a specific tag.
 Example: Return the second page, 3 plugins per page
 
 ```plaintext
-/tag/{tag}?page=1&page_size=3
+/tag/{tag}?page=2&page_size=3
 ```
 
 ---

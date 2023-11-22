@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from fastapi.openapi.utils import get_openapi
 from httpx import AsyncClient, RequestError
 from utils import *
-from typing import List, Dict
+from typing import List, Dict, Optional
 from logger import error_log
 from analytics import update_analytics
 import os
@@ -82,7 +82,7 @@ class Endpoints:
             error_log(f"Can't cache plugins. {message}", "ERROR")
             raise HTTPException(status_code=500, detail=message)
 
-    async def get_all_plugins(self, page: int = 1, page_size: int = 0):
+    async def get_all_plugins(self, page: int = 1, page_size: int = 0, order: Optional[str] = None):
         if page_size == 0:
             page_size = self.page_size
 
@@ -90,15 +90,23 @@ class Endpoints:
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
             await self.cache_plugins()
 
-        # Return paginated data from the cache
+        # Retrieve plugins from cache
         cached_plugins = self.cache["plugins"]
+
+        if order == 'newest':
+            cached_plugins = list(reversed(cached_plugins))
+        elif order == 'popular':
+            cached_plugins.sort(key=lambda x: x.get('downloads', 0), reverse=True)
+
         start_index = (page - 1) * page_size
         end_index = start_index + page_size
+        paginated_plugins = cached_plugins[start_index:end_index]
+
         return {
             "total_plugins": len(cached_plugins),
             "page": page,
             "page_size": page_size,
-            "plugins": cached_plugins[start_index:end_index],
+            "plugins": paginated_plugins,
         }
 
     async def get_all_tags(self):
