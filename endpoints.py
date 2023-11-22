@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 from fastapi import HTTPException, APIRouter, Body
 from fastapi.responses import FileResponse
+from fastapi.openapi.utils import get_openapi
 from httpx import AsyncClient, RequestError
 from utils import *
 from typing import List, Dict
@@ -31,7 +32,7 @@ class Endpoints:
         self.router.add_api_route("/download", self.download_plugin_zip, methods=["POST"])
         self.router.add_api_route("/search", self.search_plugins, methods=["POST"])
         self.router.add_api_route("/analytics", self.get_analytics, methods=["GET"])
-        self.router.add_api_route("/", self.error, methods=["GET"])
+        self.router.add_api_route("/", self.home, methods=["GET"])
         app.include_router(self.router)
 
     async def cache_plugins(self):
@@ -69,6 +70,7 @@ class Endpoints:
                     if downloads is not None:
                         plugin['downloads'] = downloads
                     else:
+                        # noinspection PyTypeChecker
                         plugin['downloads'] = 0
 
                 # Update the cache with the new data and timestamp
@@ -200,6 +202,7 @@ class Endpoints:
             "page_size": page_size,
             "plugins": matching_plugins[start_index:end_index],
         }
+
     @staticmethod
     async def get_analytics() -> Dict[str, int]:
         analytics_data = read_analytics_data()
@@ -397,6 +400,27 @@ class Endpoints:
 
         return matching_plugins
 
-    @staticmethod
-    async def error():
-        return {'error': 'This aren\'t the plugins you are looking for!'}
+    async def home(self):
+        """
+        Returns the registry status.
+        """
+        out = {
+            "status": "✅ Running: Fuck the American Dream! 🖕",
+            "version": self.app.openapi_schema["info"]["version"]
+        }
+        return out
+
+    def customize_openapi(self, title: str, logo_url: str, version: str, description: str):
+        if self.app.openapi_schema:
+            return self.app.openapi_schema
+        openapi_schema = get_openapi(
+            title=title,
+            version=version,
+            description=description,
+            routes=self.app.routes,
+        )
+        openapi_schema["info"]["x-logo"] = {
+            "url": logo_url
+        }
+        self.app.openapi_schema = openapi_schema
+        return self.app.openapi_schema
