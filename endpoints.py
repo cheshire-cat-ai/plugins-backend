@@ -1,9 +1,10 @@
 from urllib.parse import urlparse
 from fastapi import HTTPException, APIRouter, Body
 from fastapi.responses import FileResponse
+from fastapi.openapi.utils import get_openapi
 from httpx import AsyncClient, RequestError
 from utils import *
-from typing import List
+from typing import List, Dict
 from logger import error_log
 from analytics import update_analytics
 import os
@@ -30,7 +31,8 @@ class Endpoints:
         self.router.add_api_route("/author", self.get_plugins_by_author, methods=["POST"])
         self.router.add_api_route("/download", self.download_plugin_zip, methods=["POST"])
         self.router.add_api_route("/search", self.search_plugins, methods=["POST"])
-        self.router.add_api_route("/", self.error, methods=["GET"])
+        self.router.add_api_route("/analytics", self.get_analytics, methods=["GET"])
+        self.router.add_api_route("/", self.home, methods=["GET"])
         app.include_router(self.router)
 
     async def cache_plugins(self):
@@ -38,6 +40,7 @@ class Endpoints:
             async with AsyncClient() as client:
                 response = await client.get(self.json)
                 data = response.json()
+                analytics_data = read_analytics_data()
 
                 cached_plugins = []
                 for entry in data:
@@ -54,11 +57,21 @@ class Endpoints:
                             cached_plugins.append(plugin_data)
                         else:
                             message = f"Skipping plugin with missing required fields: {url}"
-                            error_log(message, "INFO")
+                            error_log(message, "WARNING")
                     except RequestError as e:
                         error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
                         cached_plugins.append({"error": error_msg})
                         error_log(error_msg, "ERROR")
+
+                for plugin in cached_plugins:
+                    # Use the 'url' from the item to find the corresponding analytics data
+                    downloads = analytics_data.get(plugin['url'])
+                    # If analytics data is found, add a 'downloads' key to the item with the value
+                    if downloads is not None:
+                        plugin['downloads'] = downloads
+                    else:
+                        # noinspection PyTypeChecker
+                        plugin['downloads'] = 0
 
                 # Update the cache with the new data and timestamp
                 self.cache["plugins"] = cached_plugins
@@ -190,6 +203,11 @@ class Endpoints:
             "plugins": matching_plugins[start_index:end_index],
         }
 
+    @staticmethod
+    async def get_analytics() -> Dict[str, int]:
+        analytics_data = read_analytics_data()
+        return analytics_data
+
     async def download_plugin_zip(self, plugin_data: dict = Body({"url": ""})):
         # Check if cache is still valid, otherwise update the cache
         if not is_cache_valid(self.cache_duration, self.cache_timestamp):
@@ -220,12 +238,23 @@ class Endpoints:
                     detail={"error": "Github API not available"}
                 )
             response = response.json()
-            if len(response) != 0:
-                url_zip = response[0]["assets"][0]["browser_download_url"]
-                version = response[0]["tag_name"]
+            
+            i = 0
+            try:
+                # list of assets with files differents from Source code zips
+                assets = response[i]["assets"]
+                while len(assets) == 0:
+                    i += 1
+                    assets = response[i]["assets"]
+
+                url_zip = assets[0]["browser_download_url"]
+                version = response[i]["tag_name"]
+                if i != 0:
+                    error_log(f"The plugin {plugin_name} has no release zip file or was pushed by hand, the version pulled is {version}", "WARNING")
+
                 zip_filename = await self.download_releses_plugin_zip(plugin_name, url_zip, version)
-            else:
-                # if not, download the zip repo
+            except (IndexError, KeyError):
+                # if you are here, there aren't any assets in the response. So, download the zip repo
                 repo_path = await self.clone_repository(plugin_url, plugin_name)
                 zip_filename = await self.create_plugin_zip(repo_path, plugin_name)
 
@@ -371,6 +400,27 @@ class Endpoints:
 
         return matching_plugins
 
-    @staticmethod
-    async def error():
-        return {'error': 'This aren\'t the plugins you are looking for!'}
+    async def home(self):
+        """
+        Returns the registry status.
+        """
+        out = {
+            "status": "✅ Running: Fuck the American Dream! 🖕",
+            "version": self.app.openapi_schema["info"]["version"]
+        }
+        return out
+
+    def customize_openapi(self, title: str, logo_url: str, version: str, description: str):
+        if self.app.openapi_schema:
+            return self.app.openapi_schema
+        openapi_schema = get_openapi(
+            title=title,
+            version=version,
+            description=description,
+            routes=self.app.routes,
+        )
+        openapi_schema["info"]["x-logo"] = {
+            "url": logo_url
+        }
+        self.app.openapi_schema = openapi_schema
+        return self.app.openapi_schema

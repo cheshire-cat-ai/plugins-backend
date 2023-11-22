@@ -73,3 +73,12 @@ def check_version_zip(name_plugin: str, version: str) -> bool:
                     return True
             
             return False
+
+
+def read_analytics_data():
+    file_path = 'analytics.json'
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    else:
+        return {}
