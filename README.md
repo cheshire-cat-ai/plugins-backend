@@ -189,9 +189,6 @@ Search for a plugin. This will perform a search in plugins' description, name, a
 
 Return all the plugins' analytics.
 
-![Graph example](https://github.com/cheshire-cat-ai/plugins-backend/assets/3589467/2339f505-d97c-4cd9-816c-37b9b0a42f20)
-
-
 ---  
 
 ### Plot Plugins' Analytics Graph
@@ -199,6 +196,8 @@ Return all the plugins' analytics.
 **GET** `/analytics/graph`
 
 Return an HTML webpage with an image of plugins' analytics graph.
+
+![Graph example](https://github.com/cheshire-cat-ai/plugins-backend/assets/3589467/2339f505-d97c-4cd9-816c-37b9b0a42f20)
 
 ---  
 
