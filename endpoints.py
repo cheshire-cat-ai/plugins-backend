@@ -93,17 +93,26 @@ class Endpoints:
         # Retrieve plugins from cache
         cached_plugins = self.cache["plugins"]
 
-        if order == 'newest':
-            cached_plugins = list(reversed(cached_plugins))
+        # Create a copy for preserving the original order
+        sorted_plugins = cached_plugins[:]
+
+        if order == 'oldest':
+            pass  # Default
+        elif order == 'newest':
+            sorted_plugins = list(reversed(sorted_plugins))
         elif order == 'popular':
-            cached_plugins.sort(key=lambda x: x.get('downloads', 0), reverse=True)
+            sorted_plugins.sort(key=lambda x: x.get('downloads', 0), reverse=True)
+        elif order == 'a2z':
+            sorted_plugins.sort(key=lambda x: x.get('name', '').lower())
+        elif order == 'z2a':
+            sorted_plugins.sort(key=lambda x: x.get('name', '').lower(), reverse=True)
 
         start_index = (page - 1) * page_size
         end_index = start_index + page_size
-        paginated_plugins = cached_plugins[start_index:end_index]
+        paginated_plugins = sorted_plugins[start_index:end_index]
 
         return {
-            "total_plugins": len(cached_plugins),
+            "total_plugins": len(sorted_plugins),
             "page": page,
             "page_size": page_size,
             "plugins": paginated_plugins,

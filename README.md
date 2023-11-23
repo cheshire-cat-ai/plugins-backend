@@ -54,6 +54,8 @@ List all the plugins.
   - `oldest`: Sort from oldest to newest **(default)**
   - `newest`: Sort from newest to older
   - `popular`: Sort from most popular
+  - `a2z`: Sort alphabetically
+  - `z2a`: Sort reverse alphabetically
 
 **Pagination Parameters:**
 
