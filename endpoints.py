@@ -1,12 +1,12 @@
 from urllib.parse import urlparse
 from fastapi import HTTPException, APIRouter, Body
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.openapi.utils import get_openapi
 from httpx import AsyncClient, RequestError
 from utils import *
 from typing import List, Dict, Optional
 from logger import error_log
-from analytics import update_analytics
+from analytics import update_analytics, generate_plot
 import os
 import shutil
 import git
@@ -32,6 +32,7 @@ class Endpoints:
         self.router.add_api_route("/download", self.download_plugin_zip, methods=["POST"])
         self.router.add_api_route("/search", self.search_plugins, methods=["POST"])
         self.router.add_api_route("/analytics", self.get_analytics, methods=["GET"])
+        self.router.add_api_route("/analytics/graph", self.get_analytics_plot, methods=["GET"])
         self.router.add_api_route("/", self.home, methods=["GET"])
         app.include_router(self.router)
 
@@ -224,6 +225,14 @@ class Endpoints:
     async def get_analytics() -> Dict[str, int]:
         analytics_data = read_analytics_data()
         return analytics_data
+
+    async def get_analytics_plot(self) -> HTMLResponse:
+        # Check if cache is still valid, otherwise update the cache
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.cache_plugins()
+
+        html_img = generate_plot(self.cache["plugins"])
+        return HTMLResponse(content=html_img)
 
     async def download_plugin_zip(self, plugin_data: dict = Body({"url": ""})):
         # Check if cache is still valid, otherwise update the cache

@@ -128,7 +128,7 @@ Example: Return the second page, 3 plugins per page
 
 **GET** `/tags`
 
-Returns the list of all available plugins' tags.
+Return the list of all available plugins' tags.
 
 ---
 
@@ -136,7 +136,7 @@ Returns the list of all available plugins' tags.
 
 **GET** `/tag/{tag}`
 
-Returns all the plugins that have a specific tag.
+Return all the plugins that have a specific tag.
 
 **Pagination Parameters:**
 
@@ -187,10 +187,17 @@ Search for a plugin. This will perform a search in plugins' description, name, a
 
 **GET** `/analytics`
 
-Returns all the plugins' analytics.
+Return all the plugins' analytics.
 
 ---  
 
+### Plot Plugins' Analytics Graph
+
+**GET** `/analytics/graph`
+
+Return an HTML webpage with an image of plugins' analytics graph.
+
+---  
 
 ## Plugin manifest validation
 
