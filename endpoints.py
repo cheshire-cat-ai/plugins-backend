@@ -26,7 +26,7 @@ class Endpoints:
         # Define FastAPI endpoints
         self.router = APIRouter()
         self.router.add_api_route("/plugins", self.get_all_plugins, methods=["GET"])
-        self.router.add_api_route("/plugins_table", self.get_plugins_html_table, methods=["GET"])
+        self.router.add_api_route("/plugins-table", self.get_plugins_html_table, methods=["GET"])
         self.router.add_api_route("/tags", self.get_all_tags, methods=["GET"])
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
         self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
@@ -64,6 +64,7 @@ class Endpoints:
                             error_log(message, "WARNING")
                     except Exception as e:
                         error_msg = f"Error fetching plugin: {plugin_json_url}, Error: {str(e)}"
+                        print(error_msg)
                         error_log(error_msg, "ERROR")
 
                 for plugin in cached_plugins:
