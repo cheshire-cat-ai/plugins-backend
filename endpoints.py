@@ -48,6 +48,7 @@ class Endpoints:
                     url = entry["url"]
                     plugin_json_url = url.replace("github.com", "raw.githubusercontent.com") + "/main/plugin.json"
                     try:
+                        print(f"Fetching plugin {plugin_json_url}")
                         plugin_data = await fetch_plugin_json(plugin_json_url)
 
                         # Validate plugin.json required fields
@@ -57,11 +58,10 @@ class Endpoints:
                             plugin_data['url'] = url
                             cached_plugins.append(plugin_data)
                         else:
-                            message = f"Skipping plugin with missing required fields: {url}"
+                            message = f"Error: Skipping plugin {url}"
                             error_log(message, "WARNING")
-                    except RequestError as e:
-                        error_msg = f"Error fetching plugin.json for URL: {plugin_json_url}, Error: {str(e)}"
-                        cached_plugins.append({"error": error_msg})
+                    except Exception as e:
+                        error_msg = f"Error fetching plugin: {plugin_json_url}, Error: {str(e)}"
                         error_log(error_msg, "ERROR")
 
                 for plugin in cached_plugins:
