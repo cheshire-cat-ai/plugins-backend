@@ -201,6 +201,28 @@ Return an HTML webpage with an image of plugins' analytics graph.
 
 ---  
 
+### Get Plugins HTML Page
+
+**GET** `/plugins_table`
+
+Get an html page containing all plugins.
+
+**Optional Parameters:**
+
+- `columns`: A comma separated list of fields that will be filtered. Possible values are: "name", "description" "author_name", "author_url", "plugin_url", "tags", "thumb", "version", "url", "downloads" - default is **all** fields shown inside table
+- `render_link`: If `True` will transform URL into hyperlynks - default is `False`
+- `classes`: Add css classes on `<table>` element - default is "plugins-table"
+
+
+Example: Show only `name` `plugin_url` and `author_name`, use hyperlynks and add `foo` as css class:
+
+
+```plaintext
+/plugins_table?columns=name,plugin_url,author_name&render_link=True&classes=foo
+```
+
+---
+
 ## Plugin manifest validation
 
 The validation process for the plugin.json manifest ensures the integrity and usability of plugins within the repository. 

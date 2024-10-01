@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 from logger import error_log
 from analytics import update_analytics, generate_plot
 import os
+from plugins_html_table import generate_plugins_html_table, PLUGIN_COLUMNS
 import shutil
 import git
 import zipfile
@@ -25,6 +26,7 @@ class Endpoints:
         # Define FastAPI endpoints
         self.router = APIRouter()
         self.router.add_api_route("/plugins", self.get_all_plugins, methods=["GET"])
+        self.router.add_api_route("/plugins_table", self.get_plugins_html_table, methods=["GET"])
         self.router.add_api_route("/tags", self.get_all_tags, methods=["GET"])
         self.router.add_api_route("/tag/{tag_name}", self.get_plugins_by_tag, methods=["GET"])
         self.router.add_api_route("/exclude", self.exclude_plugins, methods=["POST"])
@@ -118,6 +120,13 @@ class Endpoints:
             "page_size": page_size,
             "plugins": paginated_plugins,
         }
+    
+    async def get_plugins_html_table(self, columns: Optional[str] = ",".join(PLUGIN_COLUMNS), render_link: Optional[bool] = False, classes: Optional[str] = "plugins-table"):
+        if not is_cache_valid(self.cache_duration, self.cache_timestamp):
+            await self.cache_plugins()
+
+        html_img = generate_plugins_html_table(self.cache["plugins"], columns, render_link, classes)
+        return HTMLResponse(content=html_img)
 
     async def get_all_tags(self):
         # Check if cache is still valid, otherwise update the cache
