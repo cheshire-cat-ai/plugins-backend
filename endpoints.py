@@ -428,7 +428,7 @@ class Endpoints:
         matching_plugins = []
         for plugin_data in self.cache["plugins"]:
             plugin_matches_all_words = all(
-                any(word.lower() in field.lower() for field in plugin_data.values())
+                any( str(word).lower() in str(field).lower() for field in plugin_data.values())
                 for word in query_words
             )
             if plugin_matches_all_words:
